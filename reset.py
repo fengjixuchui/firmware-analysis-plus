@@ -5,7 +5,7 @@ import os.path
 from configparser import ConfigParser
 
 config = ConfigParser()
-config.read("fat.config")
+config.read("fap.config")
 firmadyne_path = config["DEFAULT"].get("firmadyne_path", "")
 sudo_pass = config["DEFAULT"].get("sudo_password", "")
 
@@ -17,4 +17,4 @@ child.expect_exact(pexpect.EOF)
 child = pexpect.spawn("/bin/sh", ["-c", "sudo rm -rf " + os.path.join(firmadyne_path, "scratch/*")])
 child.sendline(sudo_pass)
 child.expect_exact(pexpect.EOF)
-print ("[+] All done. Go ahead and run fat.py to continue firmware analysis")
+print ("[+] All done. Go ahead and run fap.py to continue firmware analysis")

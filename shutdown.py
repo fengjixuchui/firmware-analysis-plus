@@ -6,7 +6,7 @@ from configparser import ConfigParser
 import re
 
 config = ConfigParser()
-config.read("fat.config")
+config.read("fap.config")
 firmadyne_path = config["DEFAULT"].get("firmadyne_path", "")
 sudo_pass = config["DEFAULT"].get("sudo_password", "")
 
@@ -22,4 +22,4 @@ child = pexpect.spawn("/bin/sh" , ["-c", "sudo kill -9 " + process_id])
 child.sendline(sudo_pass)
 child.expect_exact(pexpect.EOF)
 
-print ("[+] All done. Go ahead and run fat.py to continue firmware analysis")
+print ("[+] All done. Go ahead and run fap.py to continue firmware analysis")

@@ -2,7 +2,7 @@
 # python3
 
 sudo apt update
-sudo apt install -y python3-pip python3-pexpect unzip busybox-static fakeroot kpartx snmp uml-utilities util-linux vlan qemu-system-arm qemu-system-mips qemu-system-x86 qemu-utils
+sudo apt install -y python3-pip python3-pexpect unzip busybox-static fakeroot kpartx snmp uml-utilities util-linux vlan qemu-utils
 sudo pip3 install python-magic -i https://pypi.mirrors.ustc.edu.cn/simple/
 
 cd firmadyne
@@ -20,14 +20,14 @@ sed -i 's/env python/env python3/' ./sources/extractor/extractor.py
 cd ..
 
 #echo "Setting up firmware analysis plus"
-#chmod +x fat.py
+#chmod +x fap.py
 #chmod +x reset.py
 
-# Set firmadyne_path in fat.config
-sed -i "/firmadyne_path=/c\firmadyne_path=$firmadyne_dir" fat.config
+# Set firmadyne_path in fap.config
+sed -i "/firmadyne_path=/c\firmadyne_path=$firmadyne_dir" fap.config
 
 echo "====================================================="
 echo "Firmware Analysis Plus installed successfully!"
-echo "Before running fat.py for the first time,"
-echo "please edit fat.config and provide your sudo password"
+echo "Before running fap.py for the first time,"
+echo "please edit fap.config and provide your sudo password"
 echo "====================================================="
