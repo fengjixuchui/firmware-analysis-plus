@@ -3,6 +3,7 @@
 import os
 import os.path
 import pexpect
+import subprocess
 import sys
 import argparse
 
@@ -24,7 +25,7 @@ def show_banner():
             | |     | | | | | | | | | | | | | | | | \__ \ 
             \_|     |_| |_| |_| |_| \_| |_/ |_| |_| |___/
 
-            Welcome to the Firmware Analysis Plus - v2.2
+            Welcome to the Firmware Analysis Plus - v2.3
  By lys - https://github.com/liyansong2018/firmware-analysis-plus
     """)
 
@@ -36,7 +37,7 @@ def get_next_unused_iid():
     return ""
 
 
-def run_extractor(firm_name, binwalk):
+def run_extractor(firm_name, binwalk, host):
     print ("[+] Firmware:", os.path.basename(firm_name))
     print ("[+] Extracting the firmware...")
 
@@ -50,7 +51,10 @@ def run_extractor(firm_name, binwalk):
             os.path.join(firmadyne_path, "images")
         ]
 
-        child = pexpect.spawn("python3", extractor_args, timeout=None)
+        if host[0] == "Ubuntu" and host[1][0:5] == "16.04":
+            child = pexpect.spawn("python2", extractor_args, timeout=None)
+        else:
+            child = pexpect.spawn("python3", extractor_args, timeout=None)
         child.expect_exact("Tag: ")
         tag = child.readline().strip().decode("utf8")
         child.expect_exact(pexpect.EOF)
@@ -108,7 +112,7 @@ def make_image(arch, image_id):
     child.expect_exact(pexpect.EOF)
 
 
-def infer_network(arch, image_id, infer_time, qemu_dir):
+def infer_network(arch, image_id, infer_time, qemu_dir, host):
     print ("[+] Setting up the network connection, please standby...")
     network_cmd = os.path.join(firmadyne_path, "scripts/inferNetwork.sh")    
     network_args = [image_id, arch, infer_time]
@@ -116,15 +120,23 @@ def infer_network(arch, image_id, infer_time, qemu_dir):
     if qemu_dir:
         path = os.environ["PATH"]
         newpath = qemu_dir + ":" + path
-        child = pexpect.spawn(network_cmd, network_args, cwd=firmadyne_path, env={"PATH":newpath})        
+	# Fix Ubuntu16.04 python3.5 pexcept.error
+	# Fix https://github.com/liyansong2018/firmware-analysis-plus/issues/37
+        if host[0] == "Ubuntu" and host[1][0:5] == "16.04":
+            network_cmd = [network_cmd, image_id, arch, infer_time]
+            command_output = subprocess.run(network_cmd, cwd=firmadyne_path, env={"PATH":newpath})
+        else:
+            child = pexpect.spawn(network_cmd, network_args, cwd=firmadyne_path, env={"PATH":newpath})
+            child.expect_exact("Interfaces:", timeout=None)
+            interfaces = child.readline().strip().decode("utf8")
+            print ("[+] Network interfaces:", interfaces)
+            child.expect_exact(pexpect.EOF)
     else:
-    	print(network_cmd, network_args, firmadyne_path, sep = "\n---------\n")
-    	child = pexpect.spawn(network_cmd, network_args, cwd=firmadyne_path)
-
-    child.expect_exact("Interfaces:", timeout=None)
-    interfaces = child.readline().strip().decode("utf8")
-    print ("[+] Network interfaces:", interfaces)
-    child.expect_exact(pexpect.EOF)
+        child = pexpect.spawn(network_cmd, network_args, cwd=firmadyne_path)
+        child.expect_exact("Interfaces:", timeout=None)
+        interfaces = child.readline().strip().decode("utf8")
+        print ("[+] Network interfaces:", interfaces)
+        child.expect_exact(pexpect.EOF)
 
 
 def final_run(image_id, arch, qemu_dir):
@@ -152,6 +164,17 @@ def final_run(image_id, arch, qemu_dir):
     child.interact()
 
 
+def identify_host():
+    lsb_cmd = "lsb_release"
+    lsb_args = ["-a"]
+    child = pexpect.spawn(lsb_cmd, lsb_args)
+    child.expect_exact("Distributor ID:", timeout=None)
+    distributor = child.readline().strip().decode("utf8")
+    child.expect_exact("Release:", timeout=None)
+    release = child.readline().strip().decode("utf8")
+    return (distributor, release)
+
+
 def main():
     show_banner()
     parser = argparse.ArgumentParser()
@@ -161,23 +184,25 @@ def main():
     parser.add_argument("-t", "--time", default="60", metavar="network_infer_time", help="Network infer time", type=str)
     args = parser.parse_args()
 
+    host = identify_host()
+
     qemu_ver = args.qemu
     qemu_dir = None
     if qemu_ver:
-        qemu_dir = os.path.abspath(os.path.join("qemu-builds", qemu_ver))
+        qemu_dir = os.path.abspath(args.qemu)
         if not os.path.isdir(qemu_dir):
             print ("[!] Directory {0} not found".format(qemu_dir))
             print ("[+] Using system qemu")
             qemu_dir = None
 
-    image_id = run_extractor(args.firm_path, args.binwalk)
+    image_id = run_extractor(args.firm_path, args.binwalk, host)
 
     if image_id == "":
         print ("[!] Image extraction failed")
     else:
         arch = identify_arch(image_id)
         make_image(arch, image_id)
-        infer_network(arch, image_id, args.time, qemu_dir)
+        infer_network(arch, image_id, args.time, qemu_dir, host)
         final_run(image_id, arch, qemu_dir)
 
 
